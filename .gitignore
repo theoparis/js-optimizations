@@ -1,0 +1,6 @@
+/quickjs/
+*.so
+*.a
+/run-test262-*
+zig-cache/
+zig-out/
