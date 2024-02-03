@@ -68,20 +68,29 @@ pub fn build(b: *std.Build) !void {
     });
     run_stage1.step.dependOn(&stage1.step);
 
+    const llvm_profdata = b.addSystemCommand(&[_][]const u8{
+        "llvm-profdata",
+        "merge",
+        "-o",
+        "run-test262-stage1.profdata",
+        "run-test262-stage1.profraw",
+    });
+    llvm_profdata.step.dependOn(&run_stage1.step);
+
     const stage2_lib = b.addSystemCommand(&[_][]const u8{
         "clang",
         "-shared",
-        "-fprofile-instr-use=run-test262-stage1.profraw",
+        "-fprofile-instr-use=run-test262-stage1.profdata",
         "-o",
         "libqjs-stage2.so",
     } ++ cflags ++ ldflags ++ lib_objects);
-    stage2_lib.step.dependOn(&run_stage1.step);
+    stage2_lib.step.dependOn(&llvm_profdata.step);
 
     const stage2 = b.addSystemCommand(&[_][]const u8{
         "clang",
         "-o",
         "run-test262-stage2",
-        "-fprofile-instr-use=run-test262-stage1.profraw",
+        "-fprofile-instr-use=run-test262-stage1.profdata",
         "quickjs/run-test262.c",
         "-L.",
         "-lqjs-stage2",
@@ -91,7 +100,7 @@ pub fn build(b: *std.Build) !void {
     const run_bolt = b.addSystemCommand(&[_][]const u8{
         "llvm-bolt",
         "-p",
-        "run-test262-stage2.profraw",
+        "run-test262-stage2.profdata",
         "-o",
         "run-test262-stage2-bolted",
         "run-test262-stage2",
@@ -101,7 +110,6 @@ pub fn build(b: *std.Build) !void {
     const run_stage2 = b.addSystemCommand(&[_][]const u8{
         "env",
         "LD_LIBRARY_PATH=.:/home/theo/llvm-builds/install/lib:/home/theo/llvm-builds/install/lib/x86_64-unknown-linux-gnu",
-        "LLVM_PROFILE_FILE=run-test262-stage2.profraw",
         "./run-test262-stage2-bolted",
         "-m",
         "-c",

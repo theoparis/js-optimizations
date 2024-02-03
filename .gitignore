@@ -4,3 +4,5 @@
 /run-test262-*
 zig-cache/
 zig-out/
+*.profraw
+*.profdata
